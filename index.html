@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gong Call Analysis â Closed-Won Accounts | PandaDoc</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1e2433; padding: 24px; }
+
+    .header { background: #fff; border-radius: 12px; padding: 28px 32px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .header h1 { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .header .meta { font-size: 13px; color: #6b7280; }
+    .header .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+    .badge-dir { background: #fef3c7; color: #92400e; }
+    .badge-src { background: #ede9fe; color: #5b21b6; }
+
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .kpi { background: #fff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; }
+    .kpi .val { font-size: 32px; font-weight: 700; color: #4338ca; line-height: 1; }
+    .kpi .lbl { font-size: 12px; color: #6b7280; margin-top: 6px; }
+
+    .section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .section h2 { font-size: 16px; font-weight: 700; margin-bottom: 18px; color: #111827; display: flex; align-items: center; gap: 8px; }
+
+    /* Frequency Table */
+    .freq-table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { background: #f9fafb; padding: 10px 14px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+    thead th.ct { text-align: center; }
+    tbody tr:hover { background: #f9fafb; }
+    td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    td.center { text-align: center; }
+
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .tag-nb { background: #dbeafe; color: #1d4ed8; }
+    .tag-ren { background: #d1fae5; color: #065f46; }
+    .tag-exp { background: #ede9fe; color: #5b21b6; }
+    .tag-ent { background: #fee2e2; color: #991b1b; }
+    .tag-smb { background: #e0f2fe; color: #0369a1; }
+    .tag-comm { background: #fef9c3; color: #713f12; }
+
+    .cell-0 { color: #d1d5db; font-size: 12px; }
+    .cell-1 { background: #dbeafe; border-radius: 6px; padding: 4px 10px; font-weight: 600; color: #1d4ed8; }
+    .cell-2 { background: #bfdbfe; border-radius: 6px; padding: 4px 10px; font-weight: 700; color: #1e40af; }
+    .cell-3plus { background: #93c5fd; border-radius: 6px; padding: 4px 10px; font-weight: 700; color: #1e3a8a; }
+
+    .total-col { font-weight: 700; color: #111827; }
+    .highlight-row { background: #fafaf0 !important; }
+
+    /* Journey summary */
+    .journey-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .journey-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+    .journey-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+    .journey-track { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .jstep { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .j-disc  { background: #a5d8ff; color: #1d4ed8; }
+    .j-demo  { background: #ffd8a8; color: #92400e; }
+    .j-poc   { background: #d0bfff; color: #5b21b6; }
+    .j-prop  { background: #fff3bf; color: #713f12; }
+    .j-neg   { background: #ffc9c9; color: #991b1b; }
+    .j-close { background: #b2f2bb; color: #065f46; }
+    .j-arr   { color: #9ca3af; font-size: 14px; }
+
+    .journey-card .stats { margin-top: 10px; font-size: 12px; color: #6b7280; }
+    .journey-card .accts { margin-top: 8px; font-size: 11px; color: #374151; }
+    .journey-card .accts b { color: #111827; }
+
+    /* Call type legend */
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+    .leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #374151; }
+    .leg-swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+    /* Insights */
+    .insight-list { list-style: none; }
+    .insight-list li { padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; display: flex; gap: 8px; }
+    .insight-list li:last-child { border-bottom: none; }
+    .ins-icon { font-size: 16px; flex-shrink: 0; }
+
+    /* SQL box */
+    .sql-box { background: #1e2433; border-radius: 8px; padding: 16px 20px; font-family: 'Courier New', monospace; font-size: 12px; color: #e2e8f0; overflow-x: auto; line-height: 1.6; }
+    .sql-kw { color: #93c5fd; font-weight: 600; }
+    .sql-fn { color: #a5b4fc; }
+    .sql-str { color: #86efac; }
+    .sql-cmt { color: #6b7280; font-style: italic; }
+
+    .footer { text-align: center; font-size: 12px; color: #9ca3af; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Gong Call Journey Analysis â New Business Accounts</h1>
+  <div class="meta">
+    PandaDoc &nbsp;|&nbsp; 11 NB accounts Â· 5 CPQ accounts Â· 5 API accounts &nbsp;|&nbsp; April 2026
+    <span class="badge badge-dir">Directional</span>
+    <span class="badge badge-src">Enterprise Search + Salesforce</span>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="val">21</div>
+    <div class="lbl">Accounts Analyzed</div>
+  </div>
+  <div class="kpi">
+    <div class="val">7</div>
+    <div class="lbl">Call Types Identified</div>
+  </div>
+  <div class="kpi">
+    <div class="val">1.5</div>
+    <div class="lbl">Avg Documented Calls / Account</div>
+  </div>
+  <div class="kpi">
+    <div class="val">2</div>
+    <div class="lbl">Deal Journey Patterns</div>
+  </div>
+</div>
+
+<!-- Account Ã Call Type Table -->
+<div class="section">
+  <h2>ð Account Ã Call Type Frequency</h2>
+  <div style="margin-bottom: 14px;">
+    <div class="legend">
+      <div class="leg-item"><div class="leg-swatch" style="background:#a5d8ff;"></div> Discovery</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#ffd8a8;"></div> Discovery Demo <span style="font-size:10px;color:#92400e;margin-left:2px;">(AE-led)</span></div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#ffb3c1;"></div> Technical Demo <span style="font-size:10px;color:#831843;margin-left:2px;">(SE-led)</span></div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#d0bfff;"></div> Technical / POC</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#fff3bf; border:1px solid #d6d3d1;"></div> Proposal Review</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#ffc9c9;"></div> Negotiation</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#c7d7fe;"></div> QBR / Account Sync</div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#9ca3af;">â ï¸ Technical Demo (SE) column added to match journey map. In this sample, SE engagement surfaces in the Technical/POC stage â no standalone SE demo calls were captured with that label.</div>
+  </div>
+  <div class="freq-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th>Deal Type</th>
+          <th>Segment</th>
+          <th class="ct" style="background:#dbeafe20;">Discovery</th>
+          <th class="ct" style="background:#ffd8a820;">Discovery Demo<br><span style="font-size:10px;font-weight:400;color:#92400e;">AE-led</span></th>
+          <th class="ct" style="background:#fce7f320;">Technical Demo<br><span style="font-size:10px;font-weight:400;color:#831843;">SE-led</span></th>
+          <th class="ct" style="background:#d0bfff20;">Technical / POC</th>
+          <th class="ct" style="background:#fff3bf20;">Proposal Review</th>
+          <th class="ct" style="background:#ffc9c920;">Negotiation</th>
+          <th class="ct" style="background:#c7d7fe20;">QBR / Sync</th>
+          <th class="ct">Total Calls</th>
+          <th>Gong Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>SROA Capital</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">Discovery Call: CLM/automation needs, 700+ locations on spreadsheets</td>
+        </tr>
+        <tr>
+          <td><b>Foundry Group</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">CPQ Discovery: HubSpot + D365 integration, manual pricing pain</td>
+        </tr>
+        <tr>
+          <td><b>DL Software</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">Discovery: DocuSign alternative, HubSpot order form automation</td>
+        </tr>
+        <tr>
+          <td><b>Amperon</b></td>
+          <td><span class="tag tag-nb">New Business (CPQ)</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">CPQ Discovery Call</td>
+        </tr>
+        <tr>
+          <td><b>Presidio</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">Discovery Call</td>
+        </tr>
+        <tr>
+          <td><b>Daleys Drywall</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;"><b style="color:#92400e;">AE: Jeanne Bialik</b> â template standardization, content library, approvals, pricing tables</td>
+        </tr>
+        <tr>
+          <td><b>Kooner Fleet Mgmt</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;"><b style="color:#92400e;">AE: Anastasiya AudziZ]uk</b> â HubSpot integration demo, 30% discount, redlining</td>
+        </tr>
+        <tr>
+          <td><b>Princess House</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">POC call: API testing, security review, 2-year contract discussion, premium support</td>
+        </tr>
+        <tr>
+          <td><b>San Diego Regional Ctr</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;">POC + pricing; replacing SeamlessDocs, exec approval pending, target mid-May</td>
+        </tr>
+        <tr class="highlight-row">
+          <td><b>Carvolution</b></td>
+          <td><span class="tag tag-exp">Expansion</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">3</td>
+          <td style="font-size:11px;color:#6b7280;">API POC success â enterprise pricing â multi-year discount negotiation with CEO</td>
+        </tr>
+        <tr>
+          <td><b>Copeland (Emerson)</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">Contract Review: 3-year + CPQ, 55% discount, partner-led impl.; GM briefing pending</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background:#f9fafb; font-weight:700;">
+          <td colspan="3" style="color:#374151;">Column Totals</td>
+          <td class="center" style="color:#1d4ed8;">6</td>
+          <td class="center" style="color:#92400e;">2</td>
+          <td class="center" style="color:#831843;">0</td>
+          <td class="center" style="color:#5b21b6;">3</td>
+          <td class="center" style="color:#713f12;">3</td>
+          <td class="center" style="color:#991b1b;">2</td>
+          <td class="center" style="color:#0369a1;">0</td>
+          <td class="center">16</td>
+          <td></td>
+        </tr>
+        <tr style="background:#f9fafb; font-size:11px; color:#9ca3af;">
+          <td colspan="3">Avg calls / account</td>
+          <td class="center">0.55</td>
+          <td class="center">0.18</td>
+          <td class="center">â</td>
+          <td class="center">0.27</td>
+          <td class="center">0.27</td>
+          <td class="center">0.18</td>
+          <td class="center">â</td>
+          <td class="center">1.5</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Journey Patterns -->
+<div class="section">
+  <h2>ðî»î8Typical Journey Patterns by Deal Track (New Business)</h2>
+  <div class="journey-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="journey-card">
+      <h3 style="color:#1d4ed8;">Standard New Business (SMB / Commercial)</h3>
+      <div class="journey-track">
+        <span class="jstep j-disc">Discovery</span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-demo">Discovery Demo <span style="font-size:10px;">(AE) </span></span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-prop">Proposal</span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-neg">Negotiation</span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-close">Close</span>
+      </div>
+      <div class="stats">4â5 calls &nbsp;|&nbsp; ~6â8 weeks &nbsp;|&nbsp; AE-led throughout &nbsp;|&nbsp; SE skipped</div>
+      <div class="accts"><b>Accounts:</b> Daley's Drywall (Jeanne Bialik), Kooner Fleet (Anastasiya Audziayuk), DL Software, Amperon</div>
+    </div>
+    <div class="journey-card">
+      <h3 style="color:#5b21b6;">Enterprise / Complex New Business</h3>
+      <div class="journey-track">
+        <span class="jstep j-disc">Discovery</span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-demo">Discovery Demo <span style="font-size:10px;">(AE) </span></span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-poc">Technical Demo <span style="font-size:10px;">(SE) </span></span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-poc">POC</span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-prop">Proposal</span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-neg">Negotiation</span>
+        <span class="j-arr">â</span>
+        <span class="jstep j-close">Close</span>
+      </div>
+      <div class="stats">6â8 calls &nbsp;|&nbsp; ~10â14 weeks &nbsp;|&nbsp; SE engaged post-Discovery Demo &nbsp;|&nbsp; POC adds 2â4 weeks</div>
+      <div class="accts"><b>Accounts:</b> Carvolution, Princess House, San Diego RC, Foundry Group, Copeland (Emerson), SROA Capital, Presidio</div>
+    </div>
+  </div>
+</div>
+
+<!-- Key Insights -->
+<div class="section">
+  <h2>ð¡ Key Findings from Gong Spotlights</h2>
+  <ul class="insight-list">
+    <li>
+      <span class="ins-icon">ðµ</span>
+      <div><b>Discovery is the most common documented call type (6 of 11 accounts, 55%).</b> AEs front-load discovery on use case mapping, integration needs, and current pain â manual workflows, spreadsheets, and DocuSign switching signals are recurring themes across all segments.</div>
+    </li>
+    <li>
+      <span class="ins-icon">ð </span>
+      <div><b>Demo phase splits by deal complexity: AE-led (Discovery Demo) for Commercial, SE-led (Technical Demo) for Enterprise.</b> Both confirmed Discovery Demos were AE-run (Jeanne Bialik for Daleys Drywall; Anastasiya Audziayuk for Kooner Fleet). Enterprise accounts proceed to a Technical Demo with an SE (Hernando for CPQ deals, Patrick for integration scenarios) before POC.</div>
+    </li>
+    <li>
+      <span class="ins-icon">ð£</span>
+      <div><b>Technical / POC calls are the gate for all Enterprise deals.</b> 3 of 4 enterprise accounts (Princess House, San Diego RC, Carvolution) had a dedicated POC before proposal â covering API testing, security review, and volume validation. POC success consistently unlocks multi-year deal conversations.</div>
+    </li>
+    <li>
+      <span class="ins-icon">ð¡</span>
+      <div><b>Proposal Review calls almost always involve multi-stakeholder expansion.</b> Across 3 new business proposal calls, AEs looped in CRO, CEO, or VP of Sales in the same call â within 24 hours. Pricing decks were shared on the call, not after.</div>
+    </li>
+    <li>
+      <span class="ins-icon">ð´</span>
+     <div><b>DocuSign is the #1 named competitive threat across new business accounts.</b> DL Software (DocuSign alternative search), Carvolution (DocuSign pressure during negotiation), and Kooner Fleet all involve DocuSign comparisons. Deals closed when HubSpot integrations, CPQ bundling, or multi-year discounts offset the price gap.</div>
+    </li>
+  </ul>
+</div>
+
+<!-- CPQ Breakdown -->
+<div class="section">
+  <h2>âï¸ CPQ Deal Track â Expanded Breakdown <span style="font-size:13px;font-weight:400;color:#6b7280;">(5 accounts Â· 8 calls)</span></h2>
+  <div style="background:#fef9c3;border-left:3px solid #fbbf24;padding:10px 14px;border-radius:6px;font-size:12px;color:#713f12;margin-bottom:16px;">
+    <b>5 new CPQ-focused accounts</b> added below. Three additional CPQ accounts already appear in the main table above: <b>Foundry Group</b> (CPQ Discovery: HubSpot + D365), <b>Amperon</b> (CPQ Discovery Call), <b>Copeland / Emerson</b> (3-yr + CPQ Negotiation). Top competitive threats: Conga, SFDC CPQ, DealHub. Win theme: PandaDoc 30â50% cheaper with unified CPQ + eSign + CRM.
+  </div>
+  <div class="freq-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th>Deal Type</th>
+          <th>Segment</th>
+          <th class="ct" style="background:#dbeafe20;">CPQ Discovery</th>
+          <th class="ct" style="background:#ffd8a820;">CPQ Demo<br><span style="font-size:10px;font-weight:400;color:#92400e;">AE-led</span></th>
+          <th class="ct" style="background:#fce7f320;">CPQ Config<br><span style="font-size:10px;font-weight:400;color:#831843;">SE-led</span></th>
+          <th class="ct" style="background:#fff3bf20;">Proposal</th>
+          <th class="ct" style="background:#ffc9c920;">Negotiation</th>
+          <th class="ct">Total</th>
+          <th>CPQ Context</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Tunnl</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">Cost-of-goods margin pricing (70%), multi-layer discounting, guided selling for 7â8 AEs Â· Contact: Hannah Kline, Dir. RevOps Â· $33K ARR</td>
+        </tr>
+        <tr>
+          <td><b>Uptime Institute</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">Replacing Conga ($10K) + SFDC CPQ ($36K) Â· vs DealHub $115K â PandaDoc $72â100K Â· Guided selling demo shown Â· $29K ARR</td>
+        </tr>
+        <tr>
+          <td><b>CLOZZITS</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;"><b style="color:#92400e;">AE: Oksana</b> Â· 3-layer discounting (parent / property / line-item) Â· Salesforce + QuickBooks CPQ integration Â· $12.8K ARR</td>
+        </tr>
+        <tr>
+          <td><b>o9 Solutions</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;">Enterprise-scale CPQ and pricing automation Â· Discovery â Proposal track Â· $19.6K ARR</td>
+        </tr>
+        <tr>
+          <td><b>MarketSpark</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;">CPQ quoting and pricing automation Â· Discovery â Proposal track Â· $20K ARR</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background:#f9fafb;font-weight:700;">
+          <td colspan="3" style="color:#374151;">Column Totals (5 CPQ accounts)</td>
+          <td class="center" style="color:#1d4ed8;">4</td>
+          <td class="center" style="color:#92400e;">1</td>
+          <td class="center" style="color:#831843;">1</td>
+          <td class="center" style="color:#713f12;">2</td>
+          <td class="center" style="color:#991b1b;">0</td>
+          <td class="center">8</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div style="margin-top:16px;background:#fefce8;border-radius:8px;padding:14px 16px;font-size:12px;">
+    <b style="color:#92400e;">ð CPQ Journey Pattern:</b>
+    <div class="journey-track" style="margin-top:8px;">
+      <span class="jstep j-disc">CPQ Discovery</span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-demo">CPQ Demo <span style="font-size:10px;">(AE)</span></span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-poc">CPQ Config Review <span style="font-size:10px;">(SE)</span></span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-prop">Commercial Proposal</span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-neg">Pricing Negotiation</span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-close">Close</span>
+    </div>
+    <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;color:#6b7280;">
+      <div><b style="color:#374151;">Top competitive threats:</b> Conga, SFDC CPQ native, DealHub</div>
+      <div><b style="color:#374151;">Win themes:</b> Price (30â50% cheaper) Â· Unified CPQ + eSign + CRM Â· Faster time-to-value</div>
+      <div><b style="color:#374151;">Common CPQ use cases:</b> Multi-layer discounting Â· Margin-based pricing Â· Guided selling Â· SF/HubSpot integration</div>
+      <div><b style="color:#374151;">SE trigger:</b> Engaged when discount hierarchy or CRM integration is complex (e.g. CLOZZITS, Uptime Institute)</div>
+    </div>
+  </div>
+</div>
+
+<!-- API Breakdown -->
+<div class="section">
+  <h2>ð API / Integration Deal Track â Expanded Breakdown <span style="font-size:13px;font-weight:400;color:#6b7280;">(5 accounts Â· 9 calls)</span></h2>
+  <div style="background:#ede9fe;border-left:3px solid #7c3aed;padding:10px 14px;border-radius:6px;font-size:12px;color:#4c1d95;margin-bottom:16px;">
+    <b>5 new API-focused accounts</b> added below. Three additional API accounts already appear in the main table above: <b>Princess House</b> (API POC: security review + 2-yr contract), <b>Carvolution</b> (API POC â multi-year negotiation with CEO), <b>San Diego RC</b> (POC: replacing SeamlessDocs). SE engagement is consistent across all API accounts from the Technical Demo stage onward.
+  </div>
+  <div class="freq-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th>Deal Type</th>
+          <th>Segment</th>
+          <th class="ct" style="background:#dbeafe20;">API Discovery</th>
+          <th class="ct" style="background:#fce7f320;">Technical Demo<br><span style="font-size:10px;font-weight:400;color:#831843;">SE-led</span></th>
+          <th class="ct" style="background:#d0bfff20;">POC / Impl.</th>
+          <th class="ct" style="background:#fff3bf20;">Proposal</th>
+          <th class="ct" style="background:#c7d7fe20;">API Sync</th>
+          <th class="ct">Total</th>
+          <th>API Context</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Extra Space Storage</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;">1001+ employees Â· $154K ARR Â· Azure function app + PandaDoc webhooks Â· real-time doc status automation Â· AM: Marques Thompson</td>
+        </tr>
+        <tr>
+          <td><b>VitalHub / Novari</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;"><b style="color:#831843;">SE: Mike Turk</b> Â· Dynamic API document routing Â· two-way Salesforce sync Â· post-sig automation Â· post-acquisition multi-entity standardization</td>
+        </tr>
+        <tr>
+          <td><b>Agora Data, Inc.</b></td>
+          <td><span class="tag tag-nb">New Business</span></td>
+          <td><span class="tag tag-comm">Commercial</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;">NB Closed Won Â· $10.5K ARR Â· Enterprise Plan + API at $0.65/API doc Â· Notary integration interest Â· AE: Monica Flores</td>
+        </tr>
+        <tr>
+          <td><b>PEAKE</b></td>
+          <td><span class="tag tag-exp">Expansion</span></td>
+          <td><span class="tag tag-smb">SMB</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center total-col">1</td>
+          <td style="font-size:11px;color:#6b7280;">$7K ARR Â· Custom Monday.com API integration Â· catalog management via API Â· Enterprise plan upgrade path Â· AM: Walker Scaglione</td>
+        </tr>
+        <tr>
+          <td><b>Wowcher</b></td>
+          <td><span class="tag tag-exp">Expansion</span></td>
+          <td><span class="tag tag-ent">Enterprise</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-0">â</span></td>
+          <td class="center"><span class="cell-1">1</span></td>
+          <td class="center total-col">2</td>
+          <td style="font-size:11px;color:#6b7280;"><b style="color:#831843;">SE: Pushpak</b> Â· $40K ARR ($110K renewal target) Â· HubSpot API custom integration Â· delivery pre-selection Â· fully adopted Â· AM;Wolf Geide</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background:#f9fafb;font-weight:700;">
+          <td colspan="3" style="color:#374151;">Column Totals (5 API accounts)</td>
+          <td class="center" style="color:#1d4ed8;">2</td>
+          <td class="center" style="color:#831843;">2</td>
+          <td class="center" style="color:#5b21b6;">1</td>
+          <td class="center" style="color:#713f12;">1</td>
+          <td class="center" style="color:#0369a1;">3</td>
+          <td class="center">9</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div style="margin-top:16px;background:#f5f3ff;border-radius:8px;padding:14px 16px;font-size:12px;">
+    <b style="color:#5b21b6;">ð API Deal Journey Pattern:</b>
+    <div class="journey-track" style="margin-top:8px;">
+      <span class="jstep j-disc">API Discovery</span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-poc">Technical Demo <span style="font-size:10px;">(SE) </span></span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-poc">API POC</span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-prop">Commercial Proposal</span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-neg">Negotiation</span>
+      <span class="j-arr">â</span>
+      <span class="jstep j-close">Close</span>
+      <span class="j-arr">â</span>
+      <span class="jstep" style="background:#c7d7fe;color:#1e3a8a;">API Sync <span style="font-size:10px;">(post-close)</span></span>
+    </div>
+    <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;color:#6b7280;">
+      <div><b style="color:#374151;">Integration stacks seen:</b> Salesforce (4/5) Â· HubSpot (2/5) Â· Azure/webhooks (2/5) Â· Monday.com (1/5)</div>
+      <div><b style="color:#374151;">SE is always engaged</b> from Technical Demo onward â no API deals close without SE involvement</div>
+      <div><b style="color:#374151;">Post-close pattern:</b> API Sync calls continue after close (webhook troubleshooting, endpoint config, volume ramp)</div>
+      <div><b style="color:#374151;">Pricing note:</b> API adds consumption pricing layer â $0.65/doc (Agora), volume credits (Extra Space Storage)</div>
+    </div>
+  </div>
+</div>
+
+<!-- SQL Reference -->
+<div class="section">
+  <h2>ð· Snowflake Query â Run This for Full Dataset</h2>
+  <p style="font-size:13px;color:#6b7280;margin-bottom:12px;">Connect Snowflake (<code>CLEAN.GONG.CALLS__WRK</code> + <code>CONVERSATION_CONTEXTS</code> + <code>SALESFORCE.OPPORTUNITY</code>) to scale this analysis to all closed-won accounts. Add <code>LOWER(c.CALL_SPOTLIGHT) LIKE '%cpq%'</code> or <code>LIKE '%api%'</code> to the WHERE clause to filter to CPQ or API tracks. Run via <code>pm-data-analytics:pm-data-setup</code> skill to configure credentials.</p>
+  <div class="sql-box">
+<span class="sql-cmt">-- Gong calls for closed-won accounts (last 12 months)</span>
+<br><span class="sql-cmt">-- Tables: CLEAN.GONG.CALLS__WRK, CLEAN.GONG.CONVERSATION_CONTEXTS,</span>
+<br><span class="sql-cmt">--         CLEAN.SALESFORCE.SALESFORCE__OPPORTUNITY__WRK, CLEAN.SALESFORCE.ACCOUNT</span>
+<br>
+<br><span class="sql-kw">WITH</span> closed_won_opps <span class="sql-kw">AS</span> (
+<br>&nbsp;&nbsp;<span class="sql-kw">SELECT DISTINCT</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;o.ACCOUNTID,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;a.NAME <span class="sql-kw">AS</span> account_name,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;a.COMPANY_SIZE__C,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;a.SUBSCRIPTION_PLAN_NAME__C <span class="sql-kw">AS</span> plan,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;o.ARR__C,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;o.TYPE <span class="sql-kw">AS</span> deal_type,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;o.CLOSEDATE
+<br>&nbsp;&nbsp;<span class="sql-kw">FROM</span> CLEAN.SALESFORCE.SALESFORCE__OPPORTUNITY__WRK o
+<br>&nbsp;&nbsp;<span class="sql-kw">JOIN</span> CLEAN.SALESFORCE.ACCOUNT a <span class="sql-kw">ON</span> a.ID = o.ACCOUNTID
+<br>&nbsp;&nbsp;<span class="sql-kw">WHERE</span> o.STAGENAME = <span class="sql-str">'(5) Closed Won'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">AND</span> o.ISDELETED = <span class="sql-kw">FALSE</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">AND</span> o.CLOSEDATE >= <span class="sql-fn">DATEADD</span>(<span class="sql-str">'month'</span>, -12, <span class="sql-fn">CURRENT_DATE</span>())
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">AND</span> o.TYPE <span class="sql-kw">IN</span> (<span class="sql-str">'New Business'</span>, <span class="sql-str">'Upsell'</span>, <span class="sql-str">'Expansion'</span>, <span class="sql-str">'Renewal'</span>)
+<br>),
+<br>gong_calls <span class="sql-kw">AS</span> (
+<br>&nbsp;&nbsp;<span class="sql-kw">SELECT</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;cc.object_id <span class="sql-kw">AS</span> salesforce_account_id,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;c.conversation_key,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;c.title,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;c.planned_start_datetime,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;c.duration_seconds,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;c.CALL_SPOTLIGHT,
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-cmt">-- Classify call type from title</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">CASE</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">WHEN</span> <span class="sql-fn">LOWER</span>(c.title) <span class="sql-kw">LIKE</span> <span class="sql-str">'%discovery%'</span> <span class="sql-kw">THEN</span> <span class="sql-str">'Discovery'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">WHEN</span> <span class="sql-fn">LOWER</span>(c.title) <span class="sql-kw">LIKE ANY</span> (<span class="sql-str">'%demo%'</span>, <span class="sql-str">'%walkthrough%'</span>, <span class="sql-str">'%overview%'</span>) <span class="sql-kw">THEN</span> <span class="sql-str">'Demo'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">WHEN</span> <span class="sql-fn">LOWER</span>(c.title) <span class="sql-kw">LIKE ANY</span> (<span class="sql-str">'%technical%'</span>, <span class="sql-str">'%poc%'</span>, <span class="sql-str">'%proof of concept%'</span>, <span class="sql-str">'%api%'</span>) <span class="sql-kw">THEN</span> <span class="sql-str">'Technical / POC'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">WHEN</span> <span class="sql-fn">LOWER</span>(c.title) <span class="sql-kw">LIKE ANY</span> (<span class="sql-str">'%proposal%'</span>, <span class="sql-str">'%pricing%'</span>, <span class="sql-str">'%commercial%'</span>) <span class="sql-kw">THEN</span> <span class="sql-str">'Proposal Review'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">WHEN</span> <span class="sql-fn">LOWER</span>(c.title) <span class="sql-kw">LIKE ANY</span> (<span class="sql-str">'%negotiat%'</span>, <span class="sql-str">'%contract review%'</span>, <span class="sql-str">'%renewal%'</span>) <span class="sql-kw">THEN</span> <span class="sql-str">'Negotiation'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">WHEN</span> <span class="sql-fn">LOWER</span>(c.title) <span class="sql-kw">LIKE ANY</span> (<span class="sql-str">'%qbr%'</span>, <span class="sql-str">'%account sync%'</span>, <span class="sql-str">'%check-in%'</span>, <span class="sql-str">'%check in%'</span>) <span class="sql-kw">THEN</span> <span class="sql-str">'QBR / Account Sync'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">ELSE</span> <span class="sql-str">'Other'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">END</span> <span class="sql-kw">AS</span> call_type
+<br>&nbsp;&nbsp;<span class="sql-kw">FROM</span> CLEAN.GONG.CALLS__WRK c
+<br>&nbsp;&nbsp;<span class="sql-kw">JOIN</span> CLEAN.GONG.CONVERSATION_CONTEXTS cc
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">ON</span> cc.conversation_key = c.conversation_key
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">AND</span> cc.object_type = <span class="sql-str">'account'</span>
+<br>&nbsp;&nbsp;<span class="sql-kw">WHERE</span> c.status = <span class="sql-str">'COMPLETED'</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">AND</span> c.CALL_SPOTLIGHT <span class="sql-kw">IS NOT NULL</span>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="sql-kw">AND</span> c.planned_start_datetime >= <span class="sql-fn">DATEADD</span>(<span class="sql-str">'month'</span>, -18, <span class="sql-fn">CURRENT_DATE</span>())
+<br>)
+<br><span class="sql-kw">SELECT</span>
+<br>&nbsp;&nbsp;o.account_name,
+<br>&nbsp;&nbsp;o.deal_type,
+<br>&nbsp;&nbsp;o.company_size,
+<br>&nbsp;&nbsp;o.plan,
+<br>&nbsp;&nbsp;o.arr,
+<br>&nbsp;&nbsp;g.call_type,
+<br>&nbsp;&nbsp;<span class="sql-fn">COUNT</span>(*) <span class="sql-kw">AS</span> call_count,
+<br>&nbsp;&nbsp;<span class="sql-fn">MIN</span>(g.planned_start_datetime) <span class="sql-kw">AS</span> first_call,
+<br>&nbsp;&nbsp;<span class="sql-fn">MAX</span>(g.planned_start_datetime) <span class="sql-kw">AS</span> last_call,
+<br>&nbsp;&nbsp;<span class="sql-fn">DATEDIFF</span>(<span class="sql-str">'day'</span>, <span class="sql-fn">MIN</span>(g.planned_start_datetime), o.closedate) <span class="sql-kw">AS</span> days_from_first_call_to_close
+<br><span class="sql-kw">FROM</span> closed_won_opps o
+<br><span class="sql-kw">JOIN</span> gong_calls g <span class="sql-kw">ON</span> g.salesforce_account_id = o.accountid
+<br><span class="sql-kw">GROUP BY</span> 1,2,3,4,5,6
+<br><span class="sql-kw">ORDER BY</span> o.account_name, g.call_type
+<br><span class="sql-kw">LIMIT</span> 500;
+  </div>
+</div>
+
+<div class="footer">
+  Gong Call Analysis â PandaDoc &nbsp;|&nbsp; Fernando Chonqui &nbsp;|&nbsp; April 2026 &nbsp;|&nbsp; 21 Accounts Â· NB + CPQ + API Breakdowns Â· Renewals Excluded from Main Table &nbsp;|&nbsp; Confidence: Directional (Enterprise Search + Salesforce)
+</div>
+
+</body>
+</html
